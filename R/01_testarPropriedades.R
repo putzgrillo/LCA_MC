@@ -10,10 +10,10 @@ source("/media/bgrillob/DATABASE/aMestrado Estatística/Disciplinas/T2 - Computa
 # DEFINIR CRITERIOS SIMULAÇÕES
 set.seed(123)
 sementesMC <- sample(seq(10 ** 7), size = 5)
-nCL <- c(2, 3)
-nManifestas <- c(3, 4)
-nMC <- c(100, 500, 1500, 3000)
-nRep <- seq(500)
+nCL <- c(2,3)
+nManifestas <- c(2,3)
+nMC <- c(100, 200)
+nRep <- seq(100)
 
 dfCombinacao <- data.frame(expand.grid(N = nMC, Semente = sementesMC, Classes = nCL, Manifestas = nManifestas, Repeticao = nRep))
 l
@@ -58,6 +58,7 @@ proc.time() - t0
 library(tidyverse)
 comparacao <- dfMcLapply %>%
   bind_rows() %>%
+  group_by(N, ClassesLatentesReal, Manifestas) %>%
   mutate(
       # ERRO CLASSIFICAÇÃO
     E_ErroClasseLCA = ClassesLatentesReal != ClassesLatentesEstimada,
@@ -66,7 +67,7 @@ comparacao <- dfMcLapply %>%
     ErroClasseBIC = ClassesLatentesEstimada - ClassesLatentesBIC,
       # VEROSSIMILHANÇA
     DifLL = logVerossimEstimada - logVerossimReal,
-    StLL = (logVerossimEstimada - logVerossimReal) / logVerossimReal
+    StLL = (logVerossimEstimada - logVerossimReal) / sd(logVerossimEstimada)
   ) 
       # VERIFICAÇÃO PROPRIEDADES: PLOT ERRO QUANTIDADE CLASSES ----
 comparacao %>%
@@ -89,14 +90,33 @@ ggplot(comparacao, aes(x = StLL, fill = as.factor(N))) +
     geom_density(alpha = 0.3) +
     geom_vline(xintercept = 0) +
     # scale_x_continuous(limits = c(-6, 6)) +
-    # facet_wrap(ClassesLatentesReal~N, scales = "free_y") +
+    facet_wrap(~ClassesLatentesReal, scales = "free_y") +
     theme_bw()
 
 
 ggplot(comparacao, aes(y = ErroClasse))
 
-      # 
+      # VERIFICAÇÃO PROPORCOES: SOMA DA DIFERENÇA ABSOLUTA ----
+dfAME <- dfMcLapply %>% 
+  bind_rows() %>% 
+  purrr::transpose() %>%
+  lapply(., function(x) {
+    real <- sort(as.numeric(unlist(strsplit(x$probClasses, split = "_"))))
+    estimada <- sort(as.numeric(unlist(strsplit(x$probClassesEstimada, split = "_"))))
+    difAbs <- sum(abs((real - estimada))) / length(real)
+    
+    data.frame(
+      N = x$N, Manifestas = x$Manifestas, ClassesLatentesReal = x$ClassesLatentesReal,
+      AME = difAbs
+    )
+  }) %>%
+  bind_rows()
 
+
+ggplot(dfAME, aes(x = AME, fill = as.factor(N))) +
+  geom_density(alpha = 0.3) +
+  facet_wrap(~ClassesLatentesReal) +
+  theme_bw()
 
 # TESTE VERIFICAR ----
 w <- 33
