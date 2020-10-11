@@ -11,7 +11,7 @@
 # CADA ITERAÇÃO
 funcaoComparacao <- function(seedR, lcR, mnR, nR, escolherR = FALSE, analitico = FALSE) {
   # INFOS SIMULADAS
-  dfLCA <- gerarDadosLCA(nObs = nR, nClasses = lcR, nManifestas = mnR)
+  dfLCA <- gerarDadosLCA(nObs = nR, nClasses = lcR, nManifestas = mnR, semente = seedR)
   verossimilhancaReal <- e_step(
     dados = dfLCA$df[, -1],
     pesos = dfLCA$probClasse,
@@ -29,6 +29,7 @@ funcaoComparacao <- function(seedR, lcR, mnR, nR, escolherR = FALSE, analitico =
     nClassesBIC <- which.min(unlist(lapply(listLCA, function(x) {x$BIC})))
     nClassesLCA <- which.max(unlist(lapply(listLCA, function(x) {max(x$verossimilhanca)})))
     verossimilhancaEstimada <- max(listLCA[[nClassesLCA]]$verossimilhanca)
+    listLCA <- listLCA[[nClassesLCA]]
   } else {
     listLCA <- doFit(X = dfLCA$df[, -1], nComponentes = lcR, convergencia = 0.001)
     nClassesBIC <- lcR
@@ -39,15 +40,15 @@ funcaoComparacao <- function(seedR, lcR, mnR, nR, escolherR = FALSE, analitico =
   
   # RESULTADOS
   dfComparacao <- data.frame(
-    N = nR, ClassesLatentes = lcR, Manifestas = mnR,
+    N = nR, Manifestas = mnR,
     ClassesLatentesReal = lcR, ClassesLatentesEstimada = nClassesLCA, ClassesLatentesBIC = nClassesBIC,
     logVerossimReal = verossimilhancaReal, logVerossimEstimada = verossimilhancaEstimada, EscolheR = escolherR,
-    probClasses = proporcaoClasses 
+    probClasses = proporcaoClasses, probClassesEstimada = paste(round(listLCA$peso, 3), collapse = "_") 
   )
   
   if (analitico) {
     resultado <- list(
-      dfComparacao = dfComparacao, dadosSimulados = dfLCA, selectedLCA = listLCA[[nClassesLCA]]
+      dfComparacao = dfComparacao, dadosSimulados = dfLCA, selectedLCA = listLCA
     )
   } else {
     resultado <- dfComparacao
